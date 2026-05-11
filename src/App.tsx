@@ -364,8 +364,8 @@ export default function App() {
       <header className="relative h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 z-0">
           <img 
-            src="https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=1600&q=80" 
-            alt="Luxury Ballroom Event Setting"
+            src="/hero_bg.jpg" 
+            alt="G Time Photo Booth Event"
             className="w-full h-full object-cover opacity-40"
             referrerPolicy="no-referrer"
           />
@@ -374,7 +374,7 @@ export default function App() {
           <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-[#0a0a0a]" />
         </div>
 
-        <div className="container mx-auto px-6 relative z-10 text-center">
+        <div className="container mx-auto px-6 relative z-10 text-center mt-24">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
