@@ -103,7 +103,7 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioError, setAudioError] = useState(false);
-  const [audioSrc, setAudioSrc] = useState<string | null>("/gtime.mp3"); // Using the locally downloaded file
+  const [audioSrc, setAudioSrc] = useState<string | null>("/gtime.mp3?v=2"); // Using the locally downloaded file
   const [audioRetryKey, setAudioRetryKey] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
 
