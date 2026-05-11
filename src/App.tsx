@@ -4,7 +4,6 @@ import {
   Camera, 
   Share2, 
   Calendar, 
-  Mail, 
   Phone, 
   Instagram, 
   Facebook, 
@@ -19,7 +18,8 @@ import {
   Smartphone,
   Volume2,
   VolumeX,
-  Music
+  Music,
+  Globe
 } from 'lucide-react';
 
 const NAV_LINKS = [
@@ -72,12 +72,28 @@ const GALLERY_IMAGES = [
     alt: 'Party event'
   },
   {
-    url: 'https://images.unsplash.com/photo-1511795409834-432f31197c76?auto=format&fit=crop&w=900&q=80',
-    alt: 'Luxury event'
-  },
-  {
     url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=900&q=80',
     alt: 'Photo booth style event'
+  },
+  {
+    url: '/gallery_1.jpg',
+    alt: 'Luxury event 1'
+  },
+  {
+    url: '/gallery_2.jpg',
+    alt: 'Luxury event 2'
+  },
+  {
+    url: '/gallery_3.jpg',
+    alt: 'Luxury event 3'
+  },
+  {
+    url: '/gallery_4.jpg',
+    alt: 'Luxury event 4'
+  },
+  {
+    url: '/gallery_5.jpg',
+    alt: 'Luxury event 5'
   }
 ];
 
@@ -86,9 +102,10 @@ export default function App() {
   const [pageViews, setPageViews] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [audioError, setAudioError] = useState(false);
+  const [audioSrc, setAudioSrc] = useState<string | null>("/gtime.mp3"); // Using the locally downloaded file
+  const [audioRetryKey, setAudioRetryKey] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     // Handle scroll for navbar styling
@@ -103,39 +120,43 @@ export default function App() {
     localStorage.setItem('gtimePageViews', currentViews.toString());
     setPageViews(currentViews);
 
-    return () => window.removeEventListener('scroll', handleScroll);
+    // Auto-play on first interaction logic
+    const handleFirstInteraction = (e: Event) => {
+      if (e.target && typeof (e.target as Element).closest === 'function' && (e.target as Element).closest('#music-toggle-btn')) return;
+      
+      if (audioRef.current && audioRef.current.paused) {
+        audioRef.current.play()
+          .then(() => {
+             window.removeEventListener('click', handleFirstInteraction);
+             window.removeEventListener('touchstart', handleFirstInteraction);
+          })
+          .catch(err => console.log("Autoplay prevented:", err instanceof Error ? err.message : String(err)));
+      }
+    };
+
+    window.addEventListener('click', handleFirstInteraction);
+    window.addEventListener('touchstart', handleFirstInteraction);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
   }, []);
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setAudioSrc(url);
-      setIsPlaying(true);
-      // We need to wait for the state to update and audio element to load the new src
-      // But we can also just use the ref directly if we want
-    }
-  };
-
-  useEffect(() => {
-    if (audioSrc && audioRef.current && isPlaying) {
-      audioRef.current.play().catch(err => console.log("Audio play blocked:", err));
-    }
-  }, [audioSrc, isPlaying]);
-
   const toggleMusic = () => {
-    if (!audioSrc) {
-      fileInputRef.current?.click();
-      return;
-    }
-
     if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play().catch(err => console.log("Audio play blocked by browser:", err));
+      if (audioError) {
+        // If there's an error, try to reload the audio
+        setAudioRetryKey(prev => prev + 1);
+        setAudioError(false);
+        return;
       }
-      setIsPlaying(!isPlaying);
+      if (audioRef.current.paused) {
+        audioRef.current.play().catch(err => console.log("Audio play blocked by browser:", err instanceof Error ? err.message : String(err)));
+      } else {
+        audioRef.current.pause();
+      }
     }
   };
 
@@ -159,53 +180,52 @@ export default function App() {
   return (
     <div className="min-h-screen font-sans">
       {/* Audio Element */}
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileChange} 
-        accept="audio/*" 
-        className="hidden" 
-      />
       {audioSrc && (
         <audio 
+          key={audioRetryKey}
           ref={audioRef} 
           loop 
+          autoPlay
+          preload="auto"
           src={audioSrc} 
+          onError={() => {
+            console.error("Audio error: Failed to load audio source");
+            setAudioError(true);
+          }}
+          onPlay={() => {
+            setAudioError(false);
+            setIsPlaying(true);
+          }}
+          onPause={() => setIsPlaying(false)}
         />
       )}
 
       {/* Floating Audio Controller */}
       <div className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-4">
-        {/* Reset/Change Music Button (only visible if music is loaded) */}
-        {audioSrc && (
-          <motion.button
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => fileInputRef.current?.click()}
-            className="w-10 h-10 bg-black/80 backdrop-blur-md text-gold-500 rounded-full border border-gold-500/20 flex items-center justify-center shadow-lg"
-            title="Change Music"
-          >
-            <Music size={18} />
-          </motion.button>
-        )}
-
         <motion.button
+          id="music-toggle-btn"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          onClick={toggleMusic}
-          className="w-14 h-14 bg-gold-500 text-black rounded-full shadow-[0_0_20px_rgba(212,175,55,0.4)] flex items-center justify-center group relative"
+          onClick={(e) => { e.stopPropagation(); toggleMusic(); }}
+          className={`w-14 h-14 ${audioError ? 'bg-red-500' : 'bg-gold-500'} text-black rounded-full shadow-[0_0_20px_rgba(212,175,55,0.4)] flex items-center justify-center group relative`}
         >
+          <span className="absolute -left-32 bg-black/80 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-center">
+            {audioError ? (
+              <>
+                Audio Load Error<br/>
+                Click to Retry Loading
+              </>
+            ) : (isPlaying ? "Pause Music" : "Play Music")}
+          </span>
           <AnimatePresence mode="wait">
-            {!audioSrc ? (
+            {audioError ? (
               <motion.div
-                key="upload"
+                key="error"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <Music size={24} />
+                <VolumeX size={24} />
               </motion.div>
             ) : isPlaying ? (
               <motion.div
@@ -249,7 +269,7 @@ export default function App() {
           
           {/* Tooltip */}
           <div className="absolute right-full mr-4 top-1/2 -translate-y-1/2 bg-black/80 backdrop-blur-md text-gold-500 px-4 py-2 rounded-lg text-xs font-bold tracking-widest whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity border border-gold-500/20">
-            {!audioSrc ? 'UPLOAD MUSIC' : isPlaying ? 'PAUSE MUSIC' : 'PLAY MUSIC'}
+            {isPlaying ? 'PAUSE MUSIC' : 'PLAY MUSIC'}
           </div>
         </motion.button>
       </div>
@@ -321,7 +341,12 @@ export default function App() {
                 >
                   BOOK NOW
                 </a>
-                <div className="flex justify-center gap-6 mt-4 pt-4 border-t border-white/10">
+                <div className="flex flex-col items-center gap-2 mt-4 pt-4 border-t border-white/10">
+                  <a href="https://www.Gtimephotobooth.com" target="_blank" rel="noopener noreferrer" className="text-gold-500 font-medium hover:underline">
+                    www.Gtimephotobooth.com
+                  </a>
+                </div>
+                <div className="flex justify-center gap-6 mt-2">
                   <a href="https://www.instagram.com/gtimephotobooth?igsh=MWU5aTRuYm1mN2dodw%3D%3D&utm_source=qr" target="_blank" rel="noopener noreferrer" className="text-white/60 hover:text-gold-500 transition-colors">
                     <Instagram size={24} />
                   </a>
@@ -502,12 +527,12 @@ export default function App() {
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
                   <div className="w-10 h-10 bg-gold-500/10 rounded-full flex items-center justify-center shrink-0">
-                    <Mail className="w-5 h-5 text-gold-500" />
+                    <Globe className="w-5 h-5 text-gold-500" />
                   </div>
                   <div>
-                    <p className="text-sm text-white/40 uppercase tracking-widest mb-1">Email Us</p>
-                    <a href="mailto:Gtimephotobooth@gmail.com" className="text-lg text-white hover:text-gold-500 transition-colors">
-                      Gtimephotobooth@gmail.com
+                    <p className="text-sm text-white/40 uppercase tracking-widest mb-1">Visit Us</p>
+                    <a href="https://www.Gtimephotobooth.com" target="_blank" rel="noopener noreferrer" className="text-lg text-white hover:text-gold-500 transition-colors">
+                      www.Gtimephotobooth.com
                     </a>
                   </div>
                 </div>
@@ -636,10 +661,10 @@ export default function App() {
         <div className="container mx-auto px-6 text-center">
           <h4 className="text-2xl font-serif font-bold text-gold-500 mb-4 tracking-widest">G TIME</h4>
           <p className="text-white/40 mb-2">Capture the Moment. Keep the Memory.</p>
-          <p className="text-white/60 mb-6">
+          <p className="text-white/60 mb-6 flex flex-wrap justify-center items-center gap-y-2">
             <a href="tel:9147683466" className="hover:text-gold-500 transition-colors">(914) 768-3466</a>
-            <span className="mx-3 text-white/20">|</span>
-            <a href="mailto:Gtimephotobooth@gmail.com" className="hover:text-gold-500 transition-colors">Gtimephotobooth@gmail.com</a>
+            <span className="mx-3 text-white/20 hidden sm:inline">|</span>
+            <a href="https://www.Gtimephotobooth.com" target="_blank" rel="noopener noreferrer" className="hover:text-gold-500 transition-colors">www.Gtimephotobooth.com</a>
           </p>
           <div className="flex justify-center gap-8 mb-8">
             {NAV_LINKS.map(link => (
